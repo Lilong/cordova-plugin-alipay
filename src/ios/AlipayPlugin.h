@@ -7,4 +7,5 @@
 @property(nonatomic,strong)NSString *privateKey;
 
 - (void) pay:(CDVInvokedUrlCommand*)command;
+- (void) isWalletExist:(CDVInvokedUrlCommand*) command;
 @end

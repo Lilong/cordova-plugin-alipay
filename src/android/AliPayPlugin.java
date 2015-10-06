@@ -1,7 +1,10 @@
 package wang.imchao.plugin.alipay;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.util.Log;
 
 import com.alipay.sdk.app.PayTask;
 
@@ -22,6 +25,8 @@ import java.util.Random;
 
 public class AliPayPlugin extends CordovaPlugin {
     private static String TAG = "AliPayPlugin";
+    private static String PAY = "pay";
+    private static String IS_WALLET_EXIST = "isWalletExist";
 
     //商户PID
     private String partner = "";
@@ -40,20 +45,39 @@ public class AliPayPlugin extends CordovaPlugin {
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) {
-        try {
-            JSONObject arguments = args.getJSONObject(0);
-            String tradeNo = arguments.getString("tradeNo");
-            String subject = arguments.getString("subject");
-            String body = arguments.getString("body");
-            String price = arguments.getString("price");
-            String fromUrlScheme = arguments.getString("fromUrlScheme");
-            String notifyUrl = arguments.getString("notifyUrl");
-            this.pay(tradeNo, subject, body, price, fromUrlScheme, notifyUrl);
-        } catch (JSONException e) {
-            e.printStackTrace();
-            return false;
+
+        boolean result = false;
+
+        Log.v(TAG, "execute: action=" + action);
+
+        if (PAY.equals(action)) {
+            try {
+                JSONObject arguments = args.getJSONObject(0);
+                String tradeNo = arguments.getString("tradeNo");
+                String subject = arguments.getString("subject");
+                String body = arguments.getString("body");
+                String price = arguments.getString("price");
+                String fromUrlScheme = arguments.getString("fromUrlScheme");
+                String notifyUrl = arguments.getString("notifyUrl");
+                this.pay(tradeNo, subject, body, price, fromUrlScheme, notifyUrl);
+                result = true;
+                callbackContext.success();
+            } catch (Exception e) {
+                Log.e(TAG, "execute: Got JSON Exception " + e.getMessage());
+                result = false;
+                callbackContext.error(e.getMessage());
+            }
+        } else if (IS_WALLET_EXIST.equals(action)) {
+            boolean isWalletExists = this.appInstalled("com.eg.android.AlipayGphone");
+            result = true;
+            callbackContext.success(isWalletExists ? "true" : "false");
+        } else {
+            result = false;
+            Log.e(TAG, "Invalid action : " + action);
+            callbackContext.error("Invalid action : " + action);
         }
-        return true;
+
+        return result;
     }
 
     public void pay(String tradeNo, String subject, String body, String price, final String fromUrlScheme, String notifyUrl) {
@@ -162,4 +186,17 @@ public class AliPayPlugin extends CordovaPlugin {
         return "sign_type=\"RSA\"";
     }
 
+    private boolean appInstalled(String uri) {
+        Context ctx = this.cordova.getActivity().getApplicationContext();
+        final PackageManager pm = ctx.getPackageManager();
+        boolean app_installed = false;
+        try {
+            pm.getPackageInfo(uri, PackageManager.GET_ACTIVITIES);
+            app_installed = true;
+        }
+        catch(PackageManager.NameNotFoundException e) {
+            app_installed = false;
+        }
+        return app_installed;
+    }
 }
