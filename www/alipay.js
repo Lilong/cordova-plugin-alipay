@@ -14,7 +14,7 @@ module.exports = {
             return
         }
         cordova.exec(successCallback, errorCallback, "AliPay", "pay", [paymentInfo]);
-    }
+    },
 
     isWalletExist : function (successCallback, errorCallback) {
         if (errorCallback == null) { errorCallback = function() {}}
@@ -28,6 +28,6 @@ module.exports = {
             console.log("Alipay isWalletExist  failure: success callback parameter must be a function");
             return
         }
-        cordova.exec(successCallback, errorCallback, "AliPay", "isWalletExist ", []);
+        cordova.exec(successCallback, errorCallback, "AliPay", "isWalletExist", []);
     }
 };
