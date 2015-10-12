@@ -79,6 +79,9 @@
 
         [[AlipaySDK defaultService] payOrder:orderString fromScheme:fromUrlScheme callback:^(NSDictionary *resultDic) {
             NSLog(@"reslut = %@",resultDic);
+            CDVPluginResult* pluginResult = nil;
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:resultDic];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
         }];
 
     }
