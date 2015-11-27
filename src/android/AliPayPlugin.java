@@ -1,10 +1,15 @@
 package wang.imchao.plugin.alipay;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.alipay.sdk.app.PayTask;
 
@@ -104,10 +109,42 @@ public class AliPayPlugin extends CordovaPlugin {
                 PayTask alipay = new PayTask(cordova.getActivity());
                 // 调用支付接口，获取支付结果
                 String result = alipay.pay(payInfo);
-                Intent i = new Intent(Intent.ACTION_VIEW,
-                        Uri.parse(fromUrlScheme + result));
-                cordova.getActivity().startActivity(i);
 
+                final PayResult payResult = new PayResult(result);
+
+                // 支付宝返回此次支付结果及加签，建议对支付宝签名信息拿签约时支付宝提供的公钥做验签
+                String resultInfo = payResult.getResult();
+
+                final String resultStatus = payResult.getResultStatus();
+
+                // 判断resultStatus 为“9000”则代表支付成功，具体状态码代表含义可参考接口文档
+                new Handler(Looper.getMainLooper()).post(new Runnable() {
+                    public void run() {
+                        Activity activity = AliPayPlugin.this.cordova.getActivity();
+                        if (TextUtils.equals(resultStatus, "9000")) {
+                            Toast.makeText(activity, "支付成功, 刷新轿车列表看结果！",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            // 判断resultStatus 为非“9000”则代表可能支付失败
+                            // “8000”代表支付结果因为支付渠道原因或者系统原因还在等待支付结果确认，最终交易是否成功以服务端异步通知为准（小概率状态）
+                            if (TextUtils.equals(resultStatus, "8000")) {
+                                Toast.makeText(activity, "支付结果确认中",
+                                        Toast.LENGTH_SHORT).show();
+
+                            } else {
+                                // 其他值就可以判断为支付失败，包括用户主动取消支付，或者系统返回的错误
+                                String errorMsg = payResult.getMemo();
+                                if (TextUtils.isEmpty(errorMsg)) {
+                                    errorMsg = "支付失败";
+                                }
+                                errorMsg += "。请确认手机已安装支付宝！";
+                                Toast.makeText(activity, errorMsg,
+                                        Toast.LENGTH_SHORT).show();
+
+                            }
+                        }
+                    }
+                });
             }
         });
     }
@@ -198,5 +235,63 @@ public class AliPayPlugin extends CordovaPlugin {
             app_installed = false;
         }
         return app_installed;
+    }
+
+    class PayResult {
+        private String resultStatus;
+        private String result;
+        private String memo;
+
+        public PayResult(String rawResult) {
+
+            if (TextUtils.isEmpty(rawResult))
+                return;
+
+            String[] resultParams = rawResult.split(";");
+            for (String resultParam : resultParams) {
+                if (resultParam.startsWith("resultStatus")) {
+                    resultStatus = gatValue(resultParam, "resultStatus");
+                }
+                if (resultParam.startsWith("result")) {
+                    result = gatValue(resultParam, "result");
+                }
+                if (resultParam.startsWith("memo")) {
+                    memo = gatValue(resultParam, "memo");
+                }
+            }
+        }
+
+        @Override
+        public String toString() {
+            return "resultStatus={" + resultStatus + "};memo={" + memo
+                    + "};result={" + result + "}";
+        }
+
+        private String gatValue(String content, String key) {
+            String prefix = key + "={";
+            return content.substring(content.indexOf(prefix) + prefix.length(),
+                    content.lastIndexOf("}"));
+        }
+
+        /**
+         * @return the resultStatus
+         */
+        public String getResultStatus() {
+            return resultStatus;
+        }
+
+        /**
+         * @return the memo
+         */
+        public String getMemo() {
+            return memo;
+        }
+
+        /**
+         * @return the result
+         */
+        public String getResult() {
+            return result;
+        }
     }
 }
